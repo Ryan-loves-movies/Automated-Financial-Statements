@@ -1,10 +1,8 @@
-import pandas as pd
 import time
 from classes.retriever import retriever
 from classes.processor import processor
 from classes.updater import updater
 import xlwings as xw
-from xlwings import Range
 
 
 def excel_column_name(n):
@@ -37,10 +35,6 @@ def main(sheet_name = 'Balance Sheet' , config_name = 'Balance Sheet config', ti
     # wb = xw.Book.caller().sheets[sheet_name]
     # wb.range('A5').value = str(active_workbook)
 
-    # This makes sure xw.Book command works -- not sure why but I'm guessing
-    # it has to do with selecting the specific excel file as the one to
-    # tamper with
-    # xw.Book("financial_statements.xlsm").set_mock_caller()
     very_start = time.time()
     # Retrieve tickers from column specified
     puller = retriever(wb, config_name)
@@ -52,15 +46,15 @@ def main(sheet_name = 'Balance Sheet' , config_name = 'Balance Sheet config', ti
     list_of_json_cik = balance_sheet_data.get_json_cik()
 
     # start = time.time()
-    links = balance_sheet_data.get_form_links(list_of_json_cik)
+    links = balance_sheet_data.get_form_links(list_of_json_cik, 'consolidated balance sheets')
     # print(f'get_form_links took {time.time()-start}')
 
     wb.sheets[sheet_name].range((excel_column_name(data_col-1) + '1')).value = f'10% Done, That took {str(time.time()-very_start)[:6]}s'
     # Range((sheet_name, excel_column_name(data_col - 1) + '1')).wrap_text = True
 
-    # start = time.time()
+    start = time.time()
     data = balance_sheet_data.download(links)
-    # print(f'processor().download() took {time.time()-start}')
+    print(f'processor().download() took {time.time()-start}')
 
     wb.sheets[sheet_name].range((excel_column_name(data_col-1) + '2')).value = f'80% Done, That took a total of {str(time.time()-very_start)[:6]}s! Updating Soon!!'
     # Range((sheet_name, excel_column_name(data_col - 1) + '2')).wrap_text = True
