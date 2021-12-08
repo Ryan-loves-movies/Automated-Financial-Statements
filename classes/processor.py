@@ -1,12 +1,16 @@
-import threading
+import pathlib
+script_path = str(pathlib.Path(__file__).parent.resolve())
+import sys
+sys.path.append(script_path)
+from processor_classes.user_agents import headers
+from processor_classes.scraper import scraper
+
 import time
 from lxml import etree, html
 import requests
-from classes.processor_classes.user_agents import headers
 from json.decoder import JSONDecodeError
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor
-from classes.processor_classes.scraper import scraper
 from pprint import pprint
 import asyncio
 import aiohttp
@@ -63,7 +67,7 @@ class processor():
         Parameters
         ----------
         dictionary_cik: Dictionary returned from processor(ticker_form_list).get_json_cik()
-        financial_statement: Text to search in the reports in FilingSummary.xml link
+        financial_statement: Report wanted -- Only 'balance sheets', 'statement of operations', 'cash flow statements' are accepted
 
         Returns a dictionary of ticker symbols that give list of
         reportDate,
@@ -99,7 +103,7 @@ class processor():
             ----------
             url: '(CIK)/(acs-number)/FilingSummary.xml'
             header: Header for requests
-            table: Report wanted --> 'consolidated balance sheets', ...
+            table: Report wanted --> 'balance sheets', ...
 
             Returns the exact full link to retrieve the table wanted --> Balance Sheet if the link is valid
             Else, return False
@@ -117,7 +121,7 @@ class processor():
             if not reports:
                 return False
 
-            if table == 'consolidated balance sheets':
+            if table == 'balance sheets':
                 for report in reports:
                     name = report.find('./shortname').text.strip(' ').lower()
                     if name == 'consolidated balance sheets statement' or name == 'consolidated balance sheets' or name == 'condensed consolidated balance sheets' or name == 'consolidated balance sheets (unaudited)':
@@ -163,6 +167,8 @@ class processor():
         fin_dict = {}
         header = headers().header()
         base_filings_url = 'https://data.sec.gov/submissions/'
+
+        start = time.perf_counter()
         for parameter_list in dictionary_cik:
             ticker_symbol = parameter_list
             fin_dict[ticker_symbol] = {}
@@ -171,11 +177,15 @@ class processor():
             json_cik = parameter_list[1]
             form_to_fetch = parameter_list[2]
 
+            while time.perf_counter()-start<0.2:
+                continue
             all_filings = requests.get(base_filings_url + json_cik, headers=header)
+            start = time.perf_counter()
+
             try:
                 all_filings = all_filings.json()
             except JSONDecodeError:
-                print('empty response from filings urls!')
+                print(f'empty response from filings urls -- {base_filings_url+json_cik}!\nsec has probably blocked your ip from requsts for the next 10 minutes!\nSorry!')
 
             # Recent Filings
             recent_filings = pd.DataFrame(all_filings['filings']['recent'])
@@ -188,7 +198,12 @@ class processor():
                 if len(older_filings) == 1:
                     filing = older_filings[0]
                     each_older_filings = filing['name']
+
+                    while time.perf_counter()-start < 0.2:
+                        continue
                     each_older_filings = requests.get(base_filings_url+each_older_filings, headers=header).json()
+                    start = time.perf_counter()
+
                     each_older_filings = pd.DataFrame(each_older_filings)
                     recent_filings = pd.DataFrame(pd.concat([recent_filings, each_older_filings], ignore_index=True))
                 else:
@@ -210,7 +225,7 @@ class processor():
                             ret = []
                             for url in urls:
                                 ret.append(asyncio.create_task(get(url,session)))
-                                await asyncio.sleep(0.1)
+                                await asyncio.sleep(0.11)
                             ret = await asyncio.gather(*ret)
                             for i in ret:
                                 old_df = pd.concat([old_df, pd.DataFrame(i)], ignore_index=True)
@@ -371,7 +386,7 @@ class processor():
                     ret = []
                     for url in urls:
                         ret.append(asyncio.create_task(get(url, session)))
-                        await asyncio.sleep(0.1)
+                        await asyncio.sleep(0.10)
                     ret = await asyncio.gather(*ret)
                     return ret
             # End of defining of async functions
@@ -383,27 +398,37 @@ class processor():
                 list10q = ticker.get('10-Q')
                 ticker['10-Q'] = asyncio.run(main_get(list10q))
 
-        def scrape(resp_list):
-            date = resp_list[0]
-            form = resp_list[1]
-            resp = resp_list[2]
-            html_bool = resp_list[3]
-            filingsummary = resp_list[4]
-            res = scraper()
-            table = eval(f'res.get_{table_type}(resp={resp}, html_bool={html_bool}, filingsummary="{filingsummary}")')
-            return [date, form, table]
+            def scrape(resp_list):
+                date = resp_list[0]
+                form = resp_list[1]
+                resp = resp_list[2]
+                html_bool = resp_list[3]
+                filingsummary = resp_list[4]
+                res = scraper()
+                table = eval(f'res.get_{table_type}(resp={resp}, html_bool={html_bool}, filingsummary="{filingsummary}")')
+                return [date, form, table]
 
-
-        start = time.perf_counter()
-        with ThreadPoolExecutor() as e:
-            for ticker_symbol in forms_dict:
-                ticker = forms_dict.get(ticker_symbol)
+            print('Now scraping')
+            start = time.perf_counter()
+            with ThreadPoolExecutor() as e:
                 res = [e.submit(scrape, i) for i in ticker.get('10-K')]
                 ticker['10-K'] = [i.result() for i in res]
                 if ticker.get('10-Q') != None:
                     res = [e.submit(scrape, i) for i in ticker.get('10-Q')]
                     ticker['10-Q'] = [i.result() for i in res]
-        print(f'concurrent.futures module took {time.perf_counter() - start}s to scrape everything\n')
+            print(f'concurrent.futures module took {time.perf_counter() - start}s to scrape everything\n')
+
+        # print('Now scraping')
+        # start = time.perf_counter()
+        # with ThreadPoolExecutor() as e:
+        #     for ticker_symbol in forms_dict:
+        #         ticker = forms_dict.get(ticker_symbol)
+        #         res = [e.submit(scrape, i) for i in ticker.get('10-K')]
+        #         ticker['10-K'] = [i.result() for i in res]
+        #         if ticker.get('10-Q') != None:
+        #             res = [e.submit(scrape, i) for i in ticker.get('10-Q')]
+        #             ticker['10-Q'] = [i.result() for i in res]
+        # print(f'concurrent.futures module took {time.perf_counter() - start}s to scrape everything\n')
 
             # start = time.perf_counter()
             # # Add 10-K files

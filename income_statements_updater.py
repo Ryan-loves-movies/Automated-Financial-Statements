@@ -1,9 +1,13 @@
-import time
-from classes.retriever import retriever
-from classes.processor import processor
-from classes.updater import updater
-import xlwings as xw
+import pathlib
+script_path = str(pathlib.Path(__file__).parent.resolve()) + '/classes'
+import sys
+sys.path.append(script_path)
+from processor import processor
+from retriever import retriever
+from updater import updater
 
+import time
+import xlwings as xw
 
 def excel_column_name(n):
     """

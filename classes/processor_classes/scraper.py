@@ -1,3 +1,9 @@
+import pathlib
+script_path = str(pathlib.Path(__file__).parent.resolve())
+import sys
+sys.path.append(script_path)
+from table_finder import finder
+
 import bs4 as bs
 import pandas as pd
 from pprint import pprint
@@ -5,7 +11,7 @@ import re
 import numpy as np
 import requests
 from lxml import etree, html
-import pathlib
+
 
 class scraper():
     def __init__(self):
@@ -108,107 +114,31 @@ class scraper():
                 utf8_parser = html.HTMLParser(encoding='utf-8')
                 fulldoc = html.document_fromstring(resp, parser=utf8_parser)
 
-                # Find the phrase 'consolidated balance sheets' that has a href -- other texts could be implemented in the future
-                tables = fulldoc.xpath(
-                    '//*[@href and contains(translate(., "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"),"consolidated balance sheet")]')
-                tables = list(set(tables))
+                list_of_hyperlink_texts = ['balance sheet']
+                list_of_texts_in_table = ['current assets:', 'current assets', 'total current assets']
+                list_of_texts_before_table = ['consolidated balance sheets',
+                                              'condensed consolidated balance sheets',
+                                              'consolidated condensed balance sheets',
+                                              'consolidated balance sheet',
+                                              'condensed consolidated balance sheet',
+                                              'consolidated condensed balance sheet']
 
-                # If/else clause to find table element
-                # If tables is not an empty list
-                if tables:
-                    print(
-                        f'Found {len(tables)} reference(s) containing the phrase "consolidated balance sheets" with a hyperlink')
-                    # There should only be one text with a href in the document that points to the table
-                    # Get the href from the text
-                    href = tables[0].get('href').lstrip('#')
-                    # link after '#' could link to both id or name -- We should try both
-                    reference = fulldoc.xpath(f'//*[@id="{href}"]')
-                    if reference == []:
-                        reference = fulldoc.xpath(f'//*[@name="{href}"]')
+                table_finder = finder(fulldoc)
+                # Try finding through the 3 different methods outlined under table_finder
+                table = table_finder.find_hyperlink_text_to_table(list_of_hyperlink_texts, form='balance sheet')
+                if table == 'Null':
+                    table = table_finder.find_text_in_table(list_of_texts_in_table, form='balance sheet')
+                if table == 'Null':
+                    table = table_finder.find_text_before_table(list_of_texts_before_table, form='balance sheet')
+                # if table is empty
+                if table == 'Null':
+                    print(f'Couldnt find table for some reason -- {etree.tostring(fulldoc)[:100]}')
+                    return []
 
-                    # Get the first table after the referenced element
-                    for page in reference:
-                        # Try/Except clause to see if text exists -- Checks if it exists within the tags or even just after the tags
-                        try:
-                            text = page.text.strip(' ').lower()
-                        except:
-                            try:
-                                text = page.tail.strip(' ').lower()
-                            except:
-                                text = None
-                                print(page)
-
-                        # If text exists, we are alr at the header, so we just need to extract the following table
-                        # Else, find the header then the table directly after the header
-                        # -- so that we are certain we extract the right table
-                        if text == 'consolidated balance sheets':
-                            table = page.xpath('./following::table[1]')
-                        else:
-                            table = page.xpath(
-                                './following::*[contains(translate(., "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"),"consolidated balance sheets")]/following::table[1]')
-                        # Convert string to pandas dataframe -- it seems unicode encoding provides the best results (for the dataframe)
-                        # Remove $ from the data and () that indicate negative flows for easier cleaning
-                        table = str(etree.tostring(table[0], encoding='unicode')).replace("$", " ").replace('(', '-').replace(')', ' ')
-                        table = pd.DataFrame(pd.read_html(table)[0])
-                else:
-                    # Phrase for 'consolidated balance sheets' probably exists in the form of a table thay could be extracted,
-                    # that is far too troublesome unfortunately
-
-                    # We shall instead just find the header directly
-                    def try_find(resp, list_of_texts):
-                        def try_find_once(resp, text_to_find):
-                            # Find the element of which contains text exactly equal to the text_to_find, disregarding whitespaces
-                            res = resp.xpath(f'''//*
-                                                    [normalize-space(
-                                                        translate(translate(.,"(Unaudited)",""),"ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")
-                                                        )
-                                                     ="{text_to_find}"]''')
-                            if len(res) == 0:
-                                return None
-                            elif len(res) == 1:
-                                return res[0].xpath('./following::table[1]')
-                            else:
-                                # Filter to just the few same tables
-                                res = list(set([i.xpath('./following::table[1]')[0] for i in res]))
-
-                                # Return the table if the table contains all the words 'assets', 'liabilities' and 'equity'
-                                for i in res:
-                                    assets = i.xpath(
-                                        './tr/td[contains(translate(.,"ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "assets")]')
-                                    liabilities = i.xpath(
-                                        './tr/td[contains(translate(.,"ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "liabilities")]')
-                                    equity = i.xpath(
-                                        './tr/td[contains(translate(.,"ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "equity")]')
-                                    if assets and liabilities and equity:
-                                        print(f'Chose element {i}')
-                                        return i
-                                    else:
-                                        continue
-                                return None
-
-                        text_before_table = None
-                        for text in list_of_texts:
-                            text_before_table = try_find_once(resp, text)
-                            if text_before_table != None:
-                                break
-                            else:
-                                continue
-                        return text_before_table
-
-                    list_of_texts = ['consolidated balance sheets', 'condensed consolidated balance sheets']
-                    table = try_find(fulldoc, list_of_texts)
-
-                    # if table is empty
-                    if table is None:
-                        print(f'Couldnt find table for some reason -- {etree.tostring(fulldoc)}')
-                        return []
-
-                    # Remove $ from the data and () that indicate negative flows for easier cleaning
-                    table = str(etree.tostring(table, encoding='unicode', method='html')).replace("$", " ").replace('(', '-').replace(')', ' ')
-                    table = pd.DataFrame(pd.read_html(table)[0])
-
-                # Just for consistency
-                panda_table = table
+                # Convert string to pandas dataframe -- it seems unicode encoding provides the best results (for the dataframe)
+                # Remove $ from the data and () that indicate negative flows for easier cleaning
+                table = str(etree.tostring(table, encoding='unicode', method='html')).replace("$", " ").replace('(', '-').replace(')', ' ')
+                panda_table = pd.DataFrame(pd.read_html(table)[0])
 
                 # Set asset and whatever items in the balance sheet as index
                 panda_table = panda_table.set_index(panda_table.iloc[:, 0])
@@ -309,170 +239,174 @@ class scraper():
 
         # Older forms -- Non-html forms
         else:
-            tables = bs.BeautifulSoup(resp, 'lxml').findAll('table')
-            for table in tables:
-                try:
-                    found = table.s.c.c
-                except:
-                    found = ''
-                if type(found) == bs.element.Tag:
-                    found_text = found.text
-                    if 'Current assets:' in found_text:
-
-                        # Extract the Date Headers as a list
-                        caption_text = table.caption.text.replace(found.text, '')
-                        caption_text = caption_text.replace('-', ' ')
-                        caption_text = caption_text.replace('=', ' ')
-                        caption_text = re.split('\n', caption_text)
-                        caption_text = [i for i in caption_text if (
-                                    i.replace(' ', '').replace('\t', '') != '' and i.replace(' ', '').replace('\t',
-                                                                                                              '') != '(Unaudited)')]
-                        new_caption_text = []
-                        for row in caption_text:
-                            new_row = re.split('\s\s|\t', row)
-                            new_row = [i.strip(' ') for i in new_row if (i != '' and i != '(Unaudited)')]
-                            new_caption_text.append(new_row)
-                        caption_text = new_caption_text
-                        if len(caption_text) == 1:
-                            # Only 1 row
-                            caption_text = caption_text[0]
-                            if len(caption_text) == 2:
-                                caption_text.insert(0, None)
-                            elif len(caption_text) == 3:
-                                pass
-                            else:
-                                print('caption is not of length 2 or 3: \n', caption_text)
-                        elif len(caption_text) == 2:
-                            # 2 rows
-                            for row in caption_text:
-                                if len(row) == 1:
-                                    if row[0] == 'ASSETS':
-                                        row.append(None)
-                                        row.append(None)
-                                    else:
-                                        row.insert(0, None)
-                                        row.insert(0, None)
-                                elif len(row) == 2:
-                                    row.insert(0, None)
-                                elif len(row) == 3:
-                                    pass
-                                else:
-                                    print('why is this row in caption text not of length 2 or 3? \n', row)
-                        #             print(caption_text)
-
-                        # Extract the table without the headers
-                        found_text = str(found_text).replace('$', ' ')
-                        found_text = found_text.replace('-', ' ')
-                        found_text = found_text.replace('=', ' ')
-                        found_text = found_text.replace('.', ' ')
-                        found_text = found_text.replace('(', '-')
-                        found_text = found_text.replace(')', ' ')
-                        found_text = found_text.split("\n")
-                        new_li = []
-                        for i in found_text:
-                            new_item = re.split('\t|\s\s', i)
-                            new_item = [i for i in new_item if (i != '' and i != ' ')]
-                            new_li.append(new_item)
-
-                        new_li = [i for i in new_li if i != []]
-                        fin_res = []
-                        for i in new_li:
-                            if len(i) == 1:
-                                fin_res.append([i[0].strip(' '), None, None])
-                            elif len(i) == 2:
-                                try:
-                                    cleaned_0 = i[0].replace(' ', '').replace(',', '')
-                                    cleaned_1 = i[1].replace(' ', '').replace(',', '')
-                                    fin_res.append([None, str(int(cleaned_0)), str(int(cleaned_1))])
-                                except:
-                                    #                         print(i)
-                                    fin_res.append(
-                                        [' '.join(i[0].split(' ')[:-1]), i[0].split(' ')[-1], i[1].strip(' ')])
-                            elif len(i) == 3:
-                                try:
-                                    cleaned_1 = i[1].replace(' ', '').replace(',', '')
-                                    cleaned_2 = i[2].replace(' ', '').replace(',', '')
-                                    fin_res.append([i[0].replace('.', ''), str(int(cleaned_1)), str(int(cleaned_2))])
-                                except:
-                                    #                         print(i)
-                                    try:
-                                        cleaned_2 = i[2].replace(' ', '').replace(',', '').strip(' ')
-                                        fin_res.append([i[0] + ' ' + " ".join(i[1].split(' ')[:-1]), str(int(
-                                            i[1].split(' ')[-1].replace(',', '').replace(' ', ''))),
-                                                        str(int(cleaned_2))])
-                                    except:
-                                        fin_res.append([(i[0] + ' ' + i[1] + ' ' + i[2]), None, None])
-                            else:
-                                try:
-                                    first_input = " ".join(i[:-2])
-                                    cleaned_1 = i[-2].replace(' ', '').replace(',', '')
-                                    cleaned_2 = i[-1].replace(' ', '').replace(',', '')
-                                    fin_res.append([i[0], str(int(cleaned_1)), str(int(cleaned_2))])
-                                except:
-                                    print('why is this length greater than 3', '\n', i)
-                                    fin_res.append([" ".join(i)])
-
-                        # Combine Caption with table
-                        if type(caption_text[0]) == list:
-                            for row in caption_text[::-1]:
-                                fin_res.insert(0, row)
-                        else:
-                            fin_res.insert(0, caption_text)
-
-                        return fin_res
-
-            # The oldest tables -- txt files which don't return because the table is within a <page> tag and not
-            # a <table> tag
-
-            # If the above block doesn't return a table, then it doesn't extract anything, so try this extraction instead, except raise errror
-            assets_pages = bs.BeautifulSoup(resp, 'lxml').find(string=re.compile('Current assets:'))
-            liabilities_pages = bs.BeautifulSoup(resp, 'lxml').find(string=re.compile('Current liabilities:'))
-
-            def extract_table(assets_pages):
-                assets = assets_pages.text
-                assets = assets.replace('$', ' ')
-                assets = assets.replace('(', '-')
-                assets = assets.replace(')', ' ')
-
-
-                assets = assets.split('\n')
-                # Removes 'see accompanying notes' text and page number
-                assets = [i.strip(' ') for i in assets if
-                          (i.strip(' ') != '' and i.strip(' ') != 'See accompanying notes.')][:-1]
-
-
-                new_assets = [re.split('\s\s', i) for i in assets]
-                #        removing the empty '' from the lists
-                new_assets = [[i.strip(' ') for i in asset if i.strip(' ') != ''] for asset in new_assets]
-                #         new_assets = [i.split('  ') for i in assets]
-                for asset in new_assets:
-                    if len(asset) == 1:
-                        asset.append(None)
-                        asset.append(None)
-                    elif len(asset) == 2:
-                        asset.insert(0, None)
-                    elif len(asset) == 3:
-                        pass
-                    else:
-                        throw = " ".join(asset)
-                        asset.clear()
-                        asset.append([throw, None, None])
-                return new_assets
-            try:
-                assets = extract_table(assets_pages)
-                liabilities = extract_table(liabilities_pages)
-
-                for i in liabilities:
-                    if i in assets:
-                        pass
-                    else:
-                        assets.append(i)
-
-                return assets
-            except TypeError:
-                print(f'Type Error: no table found for this request -- \n{resp}')
-            except AttributeError:
-                print(f'No table found for this request -- \n{resp}{AttributeError}')
+            # Scrap everything under .txt files for the moment
+            return []
+            # tables = bs.BeautifulSoup(resp, 'lxml').findAll('table')
+            # for table in tables:
+            #     try:
+            #         found = table.s.c.c
+            #     except:
+            #         found = ''
+            #     if type(found) == bs.element.Tag:
+            #         found_text = found.text
+            #         if 'Current assets:' in found_text:
+            #
+            #             # Extract the Date Headers as a list
+            #             try:
+            #                 caption_text = table.caption.text.replace(found_text, '')
+            #                 caption_text = caption_text.replace('-', ' ')
+            #                 caption_text = caption_text.replace('=', ' ')
+            #                 caption_text = re.split('\n', caption_text)
+            #                 caption_text = [i for i in caption_text if (
+            #                             i.replace(' ', '').replace('\t', '') != '' and i.replace(' ', '').replace('\t',
+            #                                                                                                       '') != '(Unaudited)')]
+            #                 new_caption_text = []
+            #                 for row in caption_text:
+            #                     new_row = re.split('\s\s|\t', row)
+            #                     new_row = [i.strip(' ') for i in new_row if (i != '' and i != '(Unaudited)')]
+            #                     new_caption_text.append(new_row)
+            #                 caption_text = new_caption_text
+            #                 if len(caption_text) == 1:
+            #                     # Only 1 row
+            #                     caption_text = caption_text[0]
+            #                     if len(caption_text) == 2:
+            #                         caption_text.insert(0, None)
+            #                     elif len(caption_text) == 3:
+            #                         pass
+            #                     else:
+            #                         print('caption is not of length 2 or 3: \n', caption_text)
+            #                 elif len(caption_text) == 2:
+            #                     # 2 rows
+            #                     for row in caption_text:
+            #                         if len(row) == 1:
+            #                             if row[0] == 'ASSETS':
+            #                                 row.append(None)
+            #                                 row.append(None)
+            #                             else:
+            #                                 row.insert(0, None)
+            #                                 row.insert(0, None)
+            #                         elif len(row) == 2:
+            #                             row.insert(0, None)
+            #                         elif len(row) == 3:
+            #                             pass
+            #                         else:
+            #                             print('why is this row in caption text not of length 2 or 3? \n', row)
+            #             except AttributeError:
+            #                 caption_text = [None,None,None]
+            #
+            #             # Extract the table without the headers
+            #             found_text = str(found_text).replace('$', ' ')
+            #             found_text = found_text.replace('-', ' ')
+            #             found_text = found_text.replace('=', ' ')
+            #             found_text = found_text.replace('.', ' ')
+            #             found_text = found_text.replace('(', '-')
+            #             found_text = found_text.replace(')', ' ')
+            #             found_text = found_text.split("\n")
+            #             new_li = []
+            #             for i in found_text:
+            #                 new_item = re.split('\t|\s\s', i)
+            #                 new_item = [i for i in new_item if (i != '' and i != ' ')]
+            #                 new_li.append(new_item)
+            #
+            #             new_li = [i for i in new_li if i != []]
+            #             fin_res = []
+            #             for i in new_li:
+            #                 if len(i) == 1:
+            #                     fin_res.append([i[0].strip(' '), None, None])
+            #                 elif len(i) == 2:
+            #                     try:
+            #                         cleaned_0 = i[0].replace(' ', '').replace(',', '')
+            #                         cleaned_1 = i[1].replace(' ', '').replace(',', '')
+            #                         fin_res.append([None, str(int(cleaned_0)), str(int(cleaned_1))])
+            #                     except:
+            #                         #                         print(i)
+            #                         fin_res.append(
+            #                             [' '.join(i[0].split(' ')[:-1]), i[0].split(' ')[-1], i[1].strip(' ')])
+            #                 elif len(i) == 3:
+            #                     try:
+            #                         cleaned_1 = i[1].replace(' ', '').replace(',', '')
+            #                         cleaned_2 = i[2].replace(' ', '').replace(',', '')
+            #                         fin_res.append([i[0].replace('.', ''), str(int(cleaned_1)), str(int(cleaned_2))])
+            #                     except:
+            #                         #                         print(i)
+            #                         try:
+            #                             cleaned_2 = i[2].replace(' ', '').replace(',', '').strip(' ')
+            #                             fin_res.append([i[0] + ' ' + " ".join(i[1].split(' ')[:-1]), str(int(
+            #                                 i[1].split(' ')[-1].replace(',', '').replace(' ', ''))),
+            #                                             str(int(cleaned_2))])
+            #                         except:
+            #                             fin_res.append([(i[0] + ' ' + i[1] + ' ' + i[2]), None, None])
+            #                 else:
+            #                     try:
+            #                         first_input = " ".join(i[:-2])
+            #                         cleaned_1 = i[-2].replace(' ', '').replace(',', '')
+            #                         cleaned_2 = i[-1].replace(' ', '').replace(',', '')
+            #                         fin_res.append([i[0], str(int(cleaned_1)), str(int(cleaned_2))])
+            #                     except:
+            #                         print('why is this length greater than 3', '\n', i)
+            #                         fin_res.append([" ".join(i)])
+            #
+            #             # Combine Caption with table
+            #             if type(caption_text[0]) == list:
+            #                 for row in caption_text[::-1]:
+            #                     fin_res.insert(0, row)
+            #             else:
+            #                 fin_res.insert(0, caption_text)
+            #
+            #             return fin_res
+            #
+            # # The oldest tables -- txt files which don't return because the table is within a <page> tag and not
+            # # a <table> tag
+            #
+            # # If the above block doesn't return a table, then it doesn't extract anything, so try this extraction instead, except raise errror
+            # assets_pages = bs.BeautifulSoup(resp, 'lxml').find(string=re.compile('Current assets:'))
+            # liabilities_pages = bs.BeautifulSoup(resp, 'lxml').find(string=re.compile('Current liabilities:'))
+            #
+            # def extract_table(assets_pages):
+            #     assets = assets_pages.text
+            #     assets = assets.replace('$', ' ')
+            #     assets = assets.replace('(', '-')
+            #     assets = assets.replace(')', ' ')
+            #
+            #
+            #     assets = assets.split('\n')
+            #     # Removes 'see accompanying notes' text and page number
+            #     assets = [i.strip(' ') for i in assets if
+            #               (i.strip(' ') != '' and i.strip(' ') != 'See accompanying notes.')][:-1]
+            #
+            #
+            #     new_assets = [re.split('\s\s', i) for i in assets]
+            #     #        removing the empty '' from the lists
+            #     new_assets = [[i.strip(' ') for i in asset if i.strip(' ') != ''] for asset in new_assets]
+            #     #         new_assets = [i.split('  ') for i in assets]
+            #     for asset in new_assets:
+            #         if len(asset) == 1:
+            #             asset.append(None)
+            #             asset.append(None)
+            #         elif len(asset) == 2:
+            #             asset.insert(0, None)
+            #         elif len(asset) == 3:
+            #             pass
+            #         else:
+            #             throw = " ".join(asset)
+            #             asset.clear()
+            #             asset.append([throw, None, None])
+            #     return new_assets
+            # try:
+            #     assets = extract_table(assets_pages)
+            #     liabilities = extract_table(liabilities_pages)
+            #
+            #     for i in liabilities:
+            #         if i in assets:
+            #             pass
+            #         else:
+            #             assets.append(i)
+            #
+            #     return assets
+            # except TypeError:
+            #     print(f'\n{resp}\n -- Type Error: no table found for this request')
+            # except AttributeError:
+            #     print(f'No table found for this request -- \n{resp}\n{AttributeError}')
 
     def get_income_statement_tables(self, resp, html_bool=True):
         """"

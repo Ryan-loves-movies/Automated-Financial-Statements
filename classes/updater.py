@@ -1,6 +1,5 @@
 import pandas as pd
-from xlwings import Range
-from datetime import datetime, date
+from datetime import datetime
 from pprint import pprint
 
 
@@ -19,15 +18,17 @@ class list_updater():
         """
         self.num_of_rows = num_of_rows
         new_df = []
-        len_of_row = len(df[0])
-        iter = 0
-        while iter < self.num_of_rows:
-            try:
-                new_df.append(df[iter])
-            except:
-                new_df.append([None] * len_of_row)
-            iter += 1
-        self.df = new_df
+        print(df)
+        if df == []:
+            self.df = [[] for i in range(self.num_of_rows)]
+        else:
+            len_of_row = len(df[0])
+            for i in range(self.num_of_rows):
+                try:
+                    new_df.append(df[i])
+                except:
+                    new_df.append([None] * len_of_row)
+            self.df = new_df
     def join(self, df2):
         """
 
@@ -104,8 +105,7 @@ class updater():
             # Only 10-K forms to extract
             if forms.get('10-Q')==None:
                 forms = forms.get('10-K')
-                num_of_forms = 0
-                for form in forms:
+                for num_of_forms,form in enumerate(forms):
                     table_to_upload = form[2]
                     # table_to_upload = pd.DataFrame(form[2])
                     # table_to_upload.columns = table_to_upload.iloc[0].values
@@ -117,12 +117,14 @@ class updater():
                         ticker_table = list_updater(100, table_to_upload)
                     else:
                         # if num_of_forms == max_forms:
-                        ticker_table.join(table_to_upload)
+                        if table_to_upload == []:
+                            continue
+                        else:
+                            ticker_table.join(table_to_upload)
                         # ticker_table = pd.concat([ticker_table, table_to_upload], ignore_index=True)
                         # else:
                         #     table_to_upload = table_to_upload.iloc[:,:-1]
                         #     ticker_table = ticker_table.join(table_to_upload, lsuffix='__'+ 'left', rsuffix='__'+'right')
-                    num_of_forms += 1
                 ticker_table = pd.DataFrame(ticker_table.df)
                 ticker_table = ticker_table.dropna(axis=0, how='all')
                 # ticker_table.columns = ticker_table.iloc[0].values
@@ -164,9 +166,8 @@ class updater():
                     # 10q in the same loop
                     if date_now == latest_10q:
                         all_forms.append(forms10q.pop(0))
-
-                iter = 0
-                for form in all_forms:
+                # pprint(all_forms)
+                for iter, form in enumerate(all_forms):
                     table_to_upload = form[2]
                     # table_to_upload = pd.DataFrame(form[2])
                     # table_to_upload.columns = table_to_upload.iloc[0].values
@@ -176,9 +177,11 @@ class updater():
                         ticker_table = list_updater(100, table_to_upload)
                         # ticker_table = table_to_upload
                     else:
-                        ticker_table.join(table_to_upload)
+                        if table_to_upload == []:
+                            continue
+                        else:
+                            ticker_table.join(table_to_upload)
                         # ticker_table = pd.concat([ticker_table, table_to_upload])
-                    iter += 1
                 ticker_table = pd.DataFrame(ticker_table.df)
                 ticker_table = ticker_table.dropna(axis=0, how='all')
                 # ticker_table.columns = ticker_table.iloc[0].values
@@ -186,6 +189,8 @@ class updater():
                 # ticker_table = ticker_table.set_index(ticker_table.columns[0])
                 # print(f'Shape of pandas dataframe is {ticker_table.shape}')
                 # Range((self.sheet_name, excel_column_name(col_num) + str(row_num))).value = ticker_table.values
+                if ticker_symbol == 'AAPL':
+                    pprint(ticker_table.values.tolist())
                 self.wb.range((excel_column_name(col_num) + str(row_num))).value = ticker_table.values
                 self.wb.range((excel_column_name(col_num) + str(row_num))).value = ticker_symbol
                 row_num += max(50, ticker_table.shape[0])

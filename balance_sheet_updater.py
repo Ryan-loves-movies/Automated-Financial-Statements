@@ -1,7 +1,12 @@
+import pathlib
+script_path = str(pathlib.Path(__file__).parent.resolve()) + '/classes'
+import sys
+sys.path.append(script_path)
+from processor import processor
+from retriever import retriever
+from updater import updater
+
 import time
-from classes.retriever import retriever
-from classes.processor import processor
-from classes.updater import updater
 import xlwings as xw
 
 
@@ -32,8 +37,7 @@ def main(sheet_name = 'Balance Sheet' , config_name = 'Balance Sheet config', ti
 
     """
     wb = xw.Book.caller()
-    # wb = xw.Book.caller().sheets[sheet_name]
-    # wb.range('A5').value = str(active_workbook)
+    wb.sheets[sheet_name].range((excel_column_name(data_col - 1) + '1')).value = f'Script running in the background! Please allow me some time before the next update!'
 
     very_start = time.time()
     # Retrieve tickers from column specified
@@ -46,17 +50,17 @@ def main(sheet_name = 'Balance Sheet' , config_name = 'Balance Sheet config', ti
     list_of_json_cik = balance_sheet_data.get_json_cik()
 
     # start = time.time()
-    links = balance_sheet_data.get_form_links(list_of_json_cik, 'consolidated balance sheets')
+    links = balance_sheet_data.get_form_links(list_of_json_cik, 'balance sheets')
     # print(f'get_form_links took {time.time()-start}')
 
-    wb.sheets[sheet_name].range((excel_column_name(data_col-1) + '1')).value = f'10% Done, That took {str(time.time()-very_start)[:6]}s'
+    wb.sheets[sheet_name].range((excel_column_name(data_col-1) + '1')).value = f'30% Done, That took {str(time.time()-very_start)[:6]}s'
     # Range((sheet_name, excel_column_name(data_col - 1) + '1')).wrap_text = True
 
     start = time.time()
     data = balance_sheet_data.download(links)
     print(f'processor().download() took {time.time()-start}')
 
-    wb.sheets[sheet_name].range((excel_column_name(data_col-1) + '2')).value = f'80% Done, That took a total of {str(time.time()-very_start)[:6]}s! Updating Soon!!'
+    wb.sheets[sheet_name].range((excel_column_name(data_col-1) + '2')).value = f'90% Done, That took a total of {str(time.time()-very_start)[:6]}s! Updating Soon!!'
     # Range((sheet_name, excel_column_name(data_col - 1) + '2')).wrap_text = True
 
     # Update full data onto excel sheet specified
