@@ -63,7 +63,7 @@ git clone https://github.com/Ryan-loves-movies/Automated-Financial-Statements.gi
 ```
 
 ## Using the program as intended
-- Open the financial_statements.xlsm file or create your own(#creating-your-own-.xlsm-file)
+- Open the financial_statements.xlsm file or [create your own](#creating-your-own-.xlsm-file)
 - Open the 'Balance Sheets config' sheet or any of the config sheets
   * Configure which companies you want to scrape - Ticker symbols only
   * Configure which forms to scrape - '10-K' or '10-Q'
@@ -91,7 +91,7 @@ There are 3 programs to choose to import from - balance_sheet_updater, income_st
 - Make sure you have the sheet with the right name - 'Balance Sheets', 'Income Statements', 'Cash Flows'
 - Save, run the macro and go and have a coffee to wait for the program to do its thing
 
-## Creating your own .xlsm file
+### Creating your own .xlsm file
 - In your own file, the same names for the sheets still have to be adhered to (unless you fork and configure the program yourself)
 - Under 'Tools' -> 'References' -> Check 'xlwings'
 - The rest is the same as configuring the .xlsm file that is already in the zip file
