@@ -15,25 +15,25 @@
 # Overview
 This is meant to be a simple project of automating the retrieval of financial statements (Balance Sheet Statemenets, Statements of Operations and Statements of Cash Flows) directly from the 10-Ks of companies.
 **Table of contents**
--[Prerequisites] (#prerequisites)
--[Implementation of program] (#implementation-of-program)
-- [How it works] (#how-it-works)
-- [Why I built this] (#why-I-built-this)
+- [Prerequisites](#prerequisites)
+-[ Implementation of program](#implementation-of-program)
+- [How it works](#how-it-works)
+- [Why I built this](#why-I-built-this)
 
 # Prerequisites
-- [Python3]
-  * [xlwings]
-  * [asyncio]
-  * [aiohttp]
-  * [requests]
-  * [datetime]
-  * [time]
-  * [lxml]
-  * [pandas]
-  * [numpy]
-  * [pathlib]
-- [xlwings]
-- [Microsoft Excel]
+- Python3
+  * xlwings
+  * asyncio
+  * aiohttp
+  * requests
+  * datetime
+  * time
+  * lxml
+  * pandas
+  * numpy
+  * pathlib
+- xlwings
+- Microsoft Excel
 
 ## Installing Prerequisites
 
