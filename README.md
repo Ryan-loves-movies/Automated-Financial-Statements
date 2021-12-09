@@ -1,5 +1,5 @@
 <p align="center">
-  <img style="-webkit-user-select: none; display: block; margin: auto; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)   env(safe-area-inset-left); cursor: zoom-in;" src="https://mpng.subpng.com/20180610/kvb/kisspng-computer-icons-report-clip-art-fatality-analysis-reporting-system-5b1daa0cac57b9.3848326315286707327059.jpg">
+  <img style="-webkit-user-select: none; display: block; margin: auto; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)   env(safe-area-inset-left); cursor: zoom-in;" src="https://mpng.subpng.com/20180610/kvb/kisspng-computer-icons-report-clip-art-fatality-analysis-reporting-system-5b1daa0cac57b9.3848326315286707327059.jpg" height = "256px" width = "256px">
   <h1 align="center">AutoFin</h1>
   <h3 align="center">Python script that automates the retrieval of financial statements in most 10-Ks of companies into an excel sheet</h3>
   <p align="center">
