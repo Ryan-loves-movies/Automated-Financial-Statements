@@ -59,7 +59,7 @@ You can simply download the [zip file](https://github.com/Ryan-loves-movies/Auto
 Execute the following in a directory you want 
 
 ```
-git clone (https://github.com/Ryan-loves-movies/Automated-Financial-Statements.git)
+git clone https://github.com/Ryan-loves-movies/Automated-Financial-Statements.git
 ```
 
 ## Using the program as intended
