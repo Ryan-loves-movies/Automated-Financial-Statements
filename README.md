@@ -63,20 +63,20 @@ git clone (https://github.com/Ryan-loves-movies/Automated-Financial-Statements.g
 ```
 
 ## Using the program as intended
-- [Open the financial_statements.xlsm file or create your own(#creating-your-own-.xlsm-file)]
-- [Open the 'Balance Sheets config' sheet or any of the config sheets]
-  * [Configure which companies you want to scrape - Ticker symbols only]
-  * [Configure which forms to scrape - '10-K' or '10-Q']
+- Open the financial_statements.xlsm file or create your own(#creating-your-own-.xlsm-file)
+- Open the 'Balance Sheets config' sheet or any of the config sheets
+  * Configure which companies you want to scrape - Ticker symbols only
+  * Configure which forms to scrape - '10-K' or '10-Q'
 Example configuration sheet in excel
 tickers|forms
 :---|:---
 [TSLA]|[10-K]
 [RBLX]|[10-Q]
-- [Enable the developer tab in excel 
-  * [Under 'Options' -> 'Ribbon' -> Check 'Developer' tab, 
-  * [Or for mac 'Preferences' -> 'Ribbon' -> Check 'Develper' tab]
-- [Open Visual Basic under the 'Developer' tab]
-- [Insert a new 'module' and insert the code for xlwings:]
+- Enable the developer tab in excel 
+  * Under 'Options' -> 'Ribbon' -> Check 'Developer' tab, 
+  * Or for mac 'Preferences' -> 'Ribbon' -> Check 'Develper' tab
+- Open Visual Basic under the 'Developer' tab
+- Insert a new 'module' and insert the code for xlwings:
 
 Example Code:
 ```
@@ -86,34 +86,34 @@ End Sub
 ```
 There are 3 programs to choose to import from - balance_sheet_updater, income_statements_updater, cash_flow_updater
 
-- [Make sure you have the sheet with the right name - 'Balance Sheets', 'Income Statements', 'Cash Flows']
-- [Save, run the macro and go and have a coffee to wait for the program to do its thing]
+- Make sure you have the sheet with the right name - 'Balance Sheets', 'Income Statements', 'Cash Flows'
+- Save, run the macro and go and have a coffee to wait for the program to do its thing
 
 ## Creating your own .xlsm file
-- [In your own file, the same names for the sheets still have to be adhered to (unless you fork and configure the program yourself)]
-- [Under 'Tools' -> 'References' -> Check 'xlwings']
-- [The rest is the same as configuring the .xlsm file that is already in the zip file]
+- In your own file, the same names for the sheets still have to be adhered to (unless you fork and configure the program yourself)
+- Under 'Tools' -> 'References' -> Check 'xlwings'
+- The rest is the same as configuring the .xlsm file that is already in the zip file
 
 # How it works
 There are 3 main steps to the program
-- [Configuration for which companies to retrieve and whether to retrieve annual and/or quarterly data]
-  * [Retrieve data from excel sheet with pandas.read_excel() and read sheet with specified name into table that can be parsed]
-- [Retrieval of the data (from sec.gov and data.sec.gov)]
-  * [requests.get() is used to get and parse data from data.sec.gov to convert the ticker symbols to CIK]
-  * [asyncio is used to asynchronously request data from data.sec.gov initially to get all filings data for the CIK]
-  * [Data is filtered to just find 10-K and 10-Q]
-  * [For each form, if the form ends in .htm, a request is made to 'sec.gov/Archive/edgar/data/(CIK)/(asc-number)/FilingSummary.xml' to see whether the page exists]
-  * [If site exists, find the specified table and parse from the given link directly]
-  * [If it doesn't exist, go straight to the 10-Q or 10-K filing and search for the table there]
+- Configuration for which companies to retrieve and whether to retrieve annual and/or quarterly data
+  * Retrieve data from excel sheet with pandas.read_excel() and read sheet with specified name into table that can be parsed
+- Retrieval of the data (from sec.gov and data.sec.gov)
+  * requests.get() is used to get and parse data from data.sec.gov to convert the ticker symbols to CIK
+  * asyncio is used to asynchronously request data from data.sec.gov initially to get all filings data for the CIK
+  * Data is filtered to just find 10-K and 10-Q
+  * For each form, if the form ends in .htm, a request is made to 'sec.gov/Archive/edgar/data/(CIK)/(asc-number)/FilingSummary.xml' to see whether the page exists
+  * If site exists, find the specified table and parse from the given link directly
+  * If it doesn't exist, go straight to the 10-Q or 10-K filing and search for the table there
 There are 3 methods used to find the table in the form
 Method|Speed
 :---|:---
 [Find the hyperlink in the document that links to the page of the table to extract the table]|[Fastest]
 [Find the text that only exists in that financial statement and extract the table]|[Mid - Quite Fast]
 [Find the header that only exists before financial statement and extract the table]|[Slowest]
-- [Updating of the data (in excel)]
-  * [The lists of lists that contain the tables are merged together and converted to a pandas dataframe]
-  * [xlwings is used to update the dataframe into the specified sheets]
+- Updating of the data (in excel)
+  * The lists of lists that contain the tables are merged together and converted to a pandas dataframe
+  * xlwings is used to update the dataframe into the specified sheets
 
 # Why I built this
 After going on a journey looking through companies' financial statements and annual reports, one thing stood out to me -- Not all Financial Statements report the same metrics. 
