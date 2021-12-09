@@ -107,12 +107,14 @@ There are 3 main steps to the program
   * For each form, if the form ends in .htm, a request is made to 'sec.gov/Archive/edgar/data/(CIK)/(asc-number)/FilingSummary.xml' to see whether the page exists
   * If site exists, find the specified table and parse from the given link directly
   * If it doesn't exist, go straight to the 10-Q or 10-K filing and search for the table there
+
 There are 3 methods used to find the table in the form
 |Method|Speed|
 |:---|:---|
 |[Find the hyperlink in the document that links to the page of the table to extract the table]|[Fastest]|
 |[Find the text that only exists in that financial statement and extract the table]|[Mid - Quite Fast]|
 |[Find the header that only exists before financial statement and extract the table]|[Slowest]|
+
 - Updating of the data (in excel)
   * The lists of lists that contain the tables are merged together and converted to a pandas dataframe
   * xlwings is used to update the dataframe into the specified sheets
