@@ -12,7 +12,8 @@
   </p>
 </p>
 
-
+# Overview
+This is meant to be a simple project of automating the retrieval of financial statements (Balance Sheet Statemenets, Statements of Operations and Statements of Cash Flows) directly from the 10-Ks of companies.
 **Table of contents**
 - [Prerequisites] (#prerequisites)
 - [Implementation of program] (#implementation-of-program)
@@ -94,8 +95,6 @@ There are 3 programs to choose to import from - balance_sheet_updater, income_st
 - [The rest is the same as configuring the .xlsm file that is already in the zip file]
 
 # How it works
-This is meant to be a simple project of automating the retrieval of financial statements (Balance Sheet Statemenets, Statements of Operations and Statements of Cash Flows) directly from the 10-Ks of companies.
-
 There are 3 main steps to the program
 - [Configuration for which companies to retrieve and whether to retrieve annual and/or quarterly data]
   * [Retrieve data from excel sheet with pandas.read_excel() and read sheet with specified name into table that can be parsed]
