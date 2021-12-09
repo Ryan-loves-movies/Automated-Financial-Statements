@@ -63,7 +63,7 @@ git clone https://github.com/Ryan-loves-movies/Automated-Financial-Statements.gi
 ```
 
 ## Using the program as intended
-- Open the financial_statements.xlsm file or [create your own](#creating-your-own-.xlsm-file)
+- Open the financial_statements.xlsm file or [create your own .xlsm file](#creating-your-own-.xlsm-file)
 - Open the 'Balance Sheets config' sheet or any of the config sheets
   * Configure which companies you want to scrape - Ticker symbols only
   * Configure which forms to scrape - '10-K' or '10-Q'
