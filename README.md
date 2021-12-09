@@ -96,6 +96,8 @@ There are 3 programs to choose to import from - balance_sheet_updater, income_st
 - Under 'Tools' -> 'References' -> Check 'xlwings'
 - The rest is the same as configuring the .xlsm file that is already in the zip file
 
+
+
 # How it works
 There are 3 main steps to the program
 - Configuration for which companies to retrieve and whether to retrieve annual and/or quarterly data
@@ -118,6 +120,8 @@ There are 3 methods used to find the table in the form
 - Updating of the data (in excel)
   * The lists of lists that contain the tables are merged together and converted to a pandas dataframe
   * xlwings is used to update the dataframe into the specified sheets
+
+
 
 # Why I built this
 After going on a journey looking through companies' financial statements and annual reports, one thing stood out to me -- Not all Financial Statements report the same metrics. 
