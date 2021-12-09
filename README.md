@@ -16,7 +16,7 @@
 This is meant to be a simple project of automating the retrieval of financial statements (Balance Sheet Statemenets, Statements of Operations and Statements of Cash Flows) directly from the 10-Ks of companies.
 **Table of contents**
 - [Prerequisites](#prerequisites)
--[ Implementation of program](#implementation-of-program)
+- [Implementation of program](#implementation-of-program)
 - [How it works](#how-it-works)
 - [Why I built this](#why-I-built-this)
 
@@ -67,11 +67,13 @@ git clone https://github.com/Ryan-loves-movies/Automated-Financial-Statements.gi
 - Open the 'Balance Sheets config' sheet or any of the config sheets
   * Configure which companies you want to scrape - Ticker symbols only
   * Configure which forms to scrape - '10-K' or '10-Q'
+
 Example configuration sheet in excel
-tickers|forms
-:---|:---
-[TSLA]|[10-K]
-[RBLX]|[10-Q]
+
+|tickers|forms|
+|:---|:---|
+|[TSLA]|[10-K]|
+|[RBLX]|[10-Q]|
 - Enable the developer tab in excel 
   * Under 'Options' -> 'Ribbon' -> Check 'Developer' tab, 
   * Or for mac 'Preferences' -> 'Ribbon' -> Check 'Develper' tab
@@ -106,11 +108,11 @@ There are 3 main steps to the program
   * If site exists, find the specified table and parse from the given link directly
   * If it doesn't exist, go straight to the 10-Q or 10-K filing and search for the table there
 There are 3 methods used to find the table in the form
-Method|Speed
-:---|:---
-[Find the hyperlink in the document that links to the page of the table to extract the table]|[Fastest]
-[Find the text that only exists in that financial statement and extract the table]|[Mid - Quite Fast]
-[Find the header that only exists before financial statement and extract the table]|[Slowest]
+|Method|Speed|
+|:---|:---|
+|[Find the hyperlink in the document that links to the page of the table to extract the table]|[Fastest]|
+|[Find the text that only exists in that financial statement and extract the table]|[Mid - Quite Fast]|
+|[Find the header that only exists before financial statement and extract the table]|[Slowest]|
 - Updating of the data (in excel)
   * The lists of lists that contain the tables are merged together and converted to a pandas dataframe
   * xlwings is used to update the dataframe into the specified sheets
