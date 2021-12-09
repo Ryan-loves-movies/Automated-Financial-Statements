@@ -72,8 +72,8 @@ Example configuration sheet in excel
 
 |tickers|forms|
 |:---|:---|
-|[TSLA]|[10-K]|
-|[RBLX]|[10-Q]|
+|TSLA|10-K|
+|RBLX|10-Q|
 - Enable the developer tab in excel 
   * Under 'Options' -> 'Ribbon' -> Check 'Developer' tab, 
   * Or for mac 'Preferences' -> 'Ribbon' -> Check 'Develper' tab
@@ -111,9 +111,9 @@ There are 3 main steps to the program
 There are 3 methods used to find the table in the form
 |Method|Speed|
 |:---|:---|
-|[Find the hyperlink in the document that links to the page of the table to extract the table]|[Fastest]|
-|[Find the text that only exists in that financial statement and extract the table]|[Mid - Quite Fast]|
-|[Find the header that only exists before financial statement and extract the table]|[Slowest]|
+|Find the hyperlink in the document that links to the page of the table to extract the table]|Fastest|
+|Find the text that only exists in that financial statement and extract the table]|Mid - Quite Fast|
+|Find the header that only exists before financial statement and extract the table]|Slowest|
 
 - Updating of the data (in excel)
   * The lists of lists that contain the tables are merged together and converted to a pandas dataframe
