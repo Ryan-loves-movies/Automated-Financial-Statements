@@ -1,0 +1,10 @@
+xlwings
+asyncio
+aiohttp
+requests
+datetime
+time
+lxml
+pandas
+numpy
+pathlib

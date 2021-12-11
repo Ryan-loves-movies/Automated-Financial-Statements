@@ -1,7 +1,4 @@
 import pandas as pd
-from datetime import datetime
-from pprint import pprint
-
 
 class list_updater():
     """
@@ -18,10 +15,7 @@ class list_updater():
         """
         self.num_of_rows = num_of_rows
         new_df = []
-        print(df)
-        if df == []:
-            self.df = [[] for i in range(self.num_of_rows)]
-        else:
+        if df:
             len_of_row = len(df[0])
             for i in range(self.num_of_rows):
                 try:
@@ -29,6 +23,9 @@ class list_updater():
                 except:
                     new_df.append([None] * len_of_row)
             self.df = new_df
+        else:
+            self.df = [[] for _ in range(self.num_of_rows)]
+
     def join(self, df2):
         """
 
@@ -41,15 +38,23 @@ class list_updater():
 
         """
         len_of_row_in_df2 = len(df2[0])
-        iter = 0
-        for item in self.df:
-            try:
-                for element in df2[iter]:
-                    item.append(element)
-            except:
-                for i in range(len_of_row_in_df2):
-                    item.append(None)
-            iter += 1
+
+        if len(df2) <= self.num_of_rows:
+            for iter, item in enumerate(self.df):
+                try:
+                    for element in df2[iter]:
+                        item.append(element)
+                except:
+                    for _ in range(len_of_row_in_df2):
+                        item.append(None)
+        else:
+            for iter, item in enumerate(df2):
+                try:
+                    for element in item:
+                        self.df[iter].append(element)
+                except:
+                    for _ in range(len_of_row_in_df2):
+                        self.df[iter].append(None)
         return self.df
 
 
@@ -72,10 +77,10 @@ class updater():
                                               [[Current assets:,None,None], ...],
                                               ...
                                     }
-                           'MSFT': {'10-K': [['2021-06-30',
-                                              '10-K',
+                           'MSFT': {'forms': [
                                               [[Current assets:,None,None], ...],
                                               ...
+                                              ]
                                     }
                           }
                     )
@@ -103,157 +108,20 @@ class updater():
             col_num = col_for_data
 
             # Only 10-K forms to extract
-            if forms.get('10-Q')==None:
-                forms = forms.get('10-K')
-                for num_of_forms,form in enumerate(forms):
-                    table_to_upload = form[2]
-                    # table_to_upload = pd.DataFrame(form[2])
-                    # table_to_upload.columns = table_to_upload.iloc[0].values
-                    # table_to_upload = table_to_upload.drop(table_to_upload.index[0])
-                    # table_to_upload = table_to_upload.set_index(table_to_upload.columns[0])
-                    if num_of_forms == 0:
-                        # print(table_to_upload)
-                        # ticker_table = table_to_upload
-                        ticker_table = list_updater(100, table_to_upload)
-                    else:
-                        # if num_of_forms == max_forms:
-                        if table_to_upload == []:
-                            continue
-                        else:
-                            ticker_table.join(table_to_upload)
-                        # ticker_table = pd.concat([ticker_table, table_to_upload], ignore_index=True)
-                        # else:
-                        #     table_to_upload = table_to_upload.iloc[:,:-1]
-                        #     ticker_table = ticker_table.join(table_to_upload, lsuffix='__'+ 'left', rsuffix='__'+'right')
-                ticker_table = pd.DataFrame(ticker_table.df)
-                ticker_table = ticker_table.dropna(axis=0, how='all')
-                # ticker_table.columns = ticker_table.iloc[0].values
-                # ticker_table = ticker_table.drop(ticker_table.index[0])
-                # ticker_table = ticker_table.set_index(ticker_table.columns[0])
-                # print(f'Shape of pandas dataframe is {ticker_table.shape}')
+            all_forms = forms
+            for num_of_forms, form in enumerate(all_forms):
+                table_to_upload = form
+                if num_of_forms == 0:
+                    ticker_table = list_updater(100, table_to_upload)
+                # If table_to_upload isn't empty
+                elif table_to_upload:
+                    ticker_table.join(table_to_upload)
+                else:
+                    continue
 
-                # Range((self.sheet_name, excel_column_name(col_num) + str(row_num))).value = ticker_table.values
-                self.wb.range((excel_column_name(col_num) + str(row_num))).value = ticker_table.values
-                self.wb.range((excel_column_name(col_num) + str(row_num))).value = ticker_symbol
-                row_num += max(50, ticker_table.shape[0])
+            ticker_table = pd.DataFrame(ticker_table.df)
+            ticker_table = ticker_table.dropna(axis=0, how='all')
 
-            # 10-Q and 10-K forms to extract
-            else:
-                forms10q = forms.get('10-Q')
-                forms10k = forms.get('10-K')
-
-                # Arrange and compile the forms in date order
-                all_forms = []
-                while (forms10q != []) or (forms10k != []):
-                    # Ensure that if either of the lists are empty, no comparisons are made and the loop
-                    # continues
-                    if forms10k == []:
-                        all_forms.append(forms10q.pop(0))
-                        continue
-                    elif forms10q == []:
-                        all_forms.append(forms10k.pop(0))
-                        continue
-
-                    latest_10q = datetime.strptime(forms10q[0][0], '%Y-%M-%d')
-                    latest_10k = datetime.strptime(forms10k[0][0], '%Y-%M-%d')
-                    # Get the latest filing date
-                    date_now = max(latest_10k, latest_10q)
-                    # Compare if equal or not instead of directly older or earlier so that it is easier
-                    # to write the exception for if the dates are equal
-                    if date_now == latest_10k:
-                        all_forms.append(forms10k.pop(0))
-                    # 2 if statements so if the dates are the same, it will append the 10k first, then the
-                    # 10q in the same loop
-                    if date_now == latest_10q:
-                        all_forms.append(forms10q.pop(0))
-                # pprint(all_forms)
-                for iter, form in enumerate(all_forms):
-                    table_to_upload = form[2]
-                    # table_to_upload = pd.DataFrame(form[2])
-                    # table_to_upload.columns = table_to_upload.iloc[0].values
-                    # table_to_upload = table_to_upload.drop(table_to_upload.index[0])
-                    # table_to_upload = table_to_upload.set_index(table_to_upload.columns[0])
-                    if iter == 0:
-                        ticker_table = list_updater(100, table_to_upload)
-                        # ticker_table = table_to_upload
-                    else:
-                        if table_to_upload == []:
-                            continue
-                        else:
-                            ticker_table.join(table_to_upload)
-                        # ticker_table = pd.concat([ticker_table, table_to_upload])
-                ticker_table = pd.DataFrame(ticker_table.df)
-                ticker_table = ticker_table.dropna(axis=0, how='all')
-                # ticker_table.columns = ticker_table.iloc[0].values
-                # ticker_table = ticker_table.drop(ticker_table.index[0])
-                # ticker_table = ticker_table.set_index(ticker_table.columns[0])
-                # print(f'Shape of pandas dataframe is {ticker_table.shape}')
-                # Range((self.sheet_name, excel_column_name(col_num) + str(row_num))).value = ticker_table.values
-                if ticker_symbol == 'AAPL':
-                    pprint(ticker_table.values.tolist())
-                self.wb.range((excel_column_name(col_num) + str(row_num))).value = ticker_table.values
-                self.wb.range((excel_column_name(col_num) + str(row_num))).value = ticker_symbol
-                row_num += max(50, ticker_table.shape[0])
-            # row_num += 50
-
-                # if latest_10q > latest_10k:
-                #     time_for_10q = True
-                # else:
-                #     time_for_10q = False
-                # num_of_forms = 0
-                # max_forms = len(forms10q) + len(forms10k)
-                # while (forms10q != []) or (forms10k != []):
-                #     num_of_forms += 1
-                #     if time_for_10q == True:
-                #         # pprint(forms10q[0][2])
-                #         table_to_upload = forms10q[0][2]
-                #         # table_to_upload.columns = table_to_upload.iloc[0].values
-                #         # table_to_upload = table_to_upload.drop(table_to_upload.index[0])
-                #         # table_to_upload = table_to_upload.set_index(table_to_upload.columns[0])
-                #         # table_to_upload = pd.DataFrame(table_to_upload)
-                #         if num_of_forms == 1:
-                #             ticker_table = list_updater(50, table_to_upload)
-                #         else:
-                #             print(forms10q)
-                #             print(forms10k)
-                #             print('table to upload:\n', table_to_upload)
-                #             ticker_table.join(table_to_upload)
-                #             # if num_of_forms == max_forms:
-                #             # ticker_table = ticker_table.join(table_to_upload, lsuffix='__'+ 'left', rsuffix='__'+'right')
-                #             # else:
-                #             #     table_to_upload = table_to_upload.iloc[:, :-1]
-                #             #     pd.set_option('display.max_columns', None)
-                #             #     print(ticker_table)
-                #             #     ticker_table = ticker_table.join(table_to_upload, lsuffix='__'+ 'left', rsuffix='__'+'right')
-                #             #     print('After Joining, ')
-                #             #     print(ticker_table)
-                #         date_now = datetime.strptime(forms10q[0][0], '%Y-%m-%d').date().replace(year=2021)
-                #         nov = datetime.strptime('2021-11-01', '%Y-%m-%d').date().replace(year=2021)
-                #         # Earlier than 5th May
-                #         if date_now > nov:
-                #             time_for_10q = False
-                #         else:
-                #             time_for_10q = True
-                #         forms10q.pop(0)
-                #
-                #
-                #     else:
-                #         # pprint(forms10k[0][2])
-                #         table_to_upload = forms10k[0][2]
-                #         # table_to_upload.columns = table_to_upload.iloc[0].values
-                #         # table_to_upload = table_to_upload.drop(table_to_upload.index[0])
-                #         # table_to_upload = table_to_upload.set_index(table_to_upload.columns[0])
-                #         # table_to_upload = pd.DataFrame(table_to_upload)
-                #         if num_of_forms == 1:
-                #             ticker_table = list_updater(50, table_to_upload)
-                #         else:
-                #             ticker_table.join(table_to_upload)
-                #             # if num_of_forms == max_forms:
-                #             #     ticker_table = ticker_table.join(table_to_upload, lsuffix='__'+ 'left', rsuffix='__'+'right')
-                #             # else:
-                #             #     table_to_upload = table_to_upload.iloc[:, :-1]
-                #             #     ticker_table = ticker_table.join(table_to_upload, lsuffix='__'+ 'left', rsuffix='__'+'right')
-                #         forms10k.pop(0)
-                #         time_for_10q = True
-
-            # For next ticker tables to fill up
+            self.wb.range((excel_column_name(col_num) + str(row_num))).value = ticker_table.values
+            self.wb.range((excel_column_name(col_num) + str(row_num))).value = ticker_symbol
+            row_num += max(50, ticker_table.shape[0])

@@ -7,7 +7,6 @@ from table_finder import finder
 import bs4 as bs
 import pandas as pd
 from pprint import pprint
-import re
 import numpy as np
 import requests
 from lxml import etree, html
@@ -51,7 +50,9 @@ class scraper():
                     table = etree.tostring(newdoc.xpath('//table[1]')[0])
                     df = pd.DataFrame(pd.read_html(table)[0])
                 else:
-                    df = pd.DataFrame(pd.read_html(resp)[0])
+                    doc = etree.fromstring(resp, parser = etree.HTMLParser())
+                    table_in_doc = etree.tostring(doc.xpath('//table[1]')[0])
+                    df = pd.DataFrame(pd.read_html(table_in_doc)[0])
 
                 # Get index of table
                 first_column = df[df.columns[0]]
@@ -132,7 +133,7 @@ class scraper():
                     table = table_finder.find_text_before_table(list_of_texts_before_table, form='balance sheet')
                 # if table is empty
                 if table == 'Null':
-                    print(f'Couldnt find table for some reason -- {etree.tostring(fulldoc)[:100]}')
+                    print(f'Couldnt find table for some reason -- {etree.tostring(fulldoc.xpath(".//table[1]")[0])}')
                     return []
 
                 # Convert string to pandas dataframe -- it seems unicode encoding provides the best results (for the dataframe)
@@ -157,7 +158,8 @@ class scraper():
                 new_df = []
 
                 asset_trigger = False
-
+                ho = 'Null'
+                abnormal = False
                 for row in panda_table.itertuples():
                     new_row = []
 
@@ -184,11 +186,12 @@ class scraper():
 
                     # All data should only be length 3, show the exceptions
                     if len(new_row) > 3:
-                        print(new_row)
-                        ho = fulldoc.findall('div')
-                        print(ho[:40])
+                        print(f'this row had more than 3 values for some reason - {new_row}')
+                        abnormal = True
                     else:
                         new_df.append(new_row)
+                if abnormal:
+                    panda_table.to_pickle('./abnormal_table.pkl')
 
                 panda_table = pd.DataFrame(new_df)
                 df = panda_table.dropna(axis=0, how='all').reset_index(drop=True)
