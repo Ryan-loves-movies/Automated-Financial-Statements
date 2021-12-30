@@ -6,12 +6,75 @@ from concurrent.futures import ThreadPoolExecutor
 class finder():
     def __init__(self, doc):
         self.doc = doc
+    def check_tables(self, res, form):
+        """
+
+        Parameters
+        ----------
+        res: List of table elements -- etree elements
+        form: 'balance sheet', 'statement of operations', 'cash flow statements'
+
+        Returns table if table contains the right elements,
+        Else return 'Null'
+        -------
+
+        """
+        if form == 'balance sheet':
+            # Return the table if the table contains all the words 'assets', 'liabilities' and 'equity'
+            for i in res:
+                assets = list(set(['Positive' if 'assets' in str(a.text).lower().strip(' ') else 'Null' for a in
+                                   i.xpath('./tr/td')])).remove('Null')
+                liabilities = list(
+                    set(['Positive' if 'liabilities' in str(a.text).lower().strip(' ') else 'Null' for a in
+                         i.xpath('./tr/td')])).remove('Null')
+                equity = list(set(['Positive' if 'equity' in str(a.text).lower().strip(' ') else 'Null' for a in
+                                   i.xpath('./tr/td')])).remove('Null')
+                if assets and liabilities and equity:
+                    table = i
+                    return table
+                else:
+                    continue
+            return 'Null'
+        elif form == 'statement of operations':
+            for i in res:
+                revenue = list(set(['Positive' if (('revenue' in str(a.text).lower().strip(' ')) or (
+                            'sales' in str(a.text).lower().strip(' '))) else 'Null' for a in
+                                    i.xpath('./tr/td')])).remove('Null')
+                cost = list(
+                    set(['Positive' if (('expense' in str(a.text).lower().strip(' ')) or (
+                                'cost' in str(a.text).lower().strip(' '))) else 'Null' for a in
+                         i.xpath('./tr/td')])).remove('Null')
+                income = list(set(['Positive' if 'net income' in str(a.text).lower().strip(' ') else 'Null' for a in
+                                   i.xpath('./tr/td')])).remove('Null')
+                if revenue and cost and income:
+                    table = i
+                    return table
+                else:
+                    continue
+            return 'Null'
+        elif form == 'cash flow statements':
+            for i in res:
+                op_activities = list(
+                    set(['Positive' if 'operating activities' in str(a.text).lower().strip(' ') else 'Null' for a in
+                         i.xpath('./tr/td')])).remove('Null')
+                fin_activities = list(
+                    set(['Positive' if 'financing activities' in str(a.text).lower().strip(' ') else 'Null' for a in
+                         i.xpath('./tr/td')])).remove('Null')
+                inv_activities = list(
+                    set(['Positive' if 'investing activities' in str(a.text).lower().strip(' ') else 'Null' for a in
+                         i.xpath('./tr/td')])).remove('Null')
+                if op_activities and fin_activities and inv_activities:
+                    table = i
+                    return table
+                else:
+                    continue
+            return 'Null'
     def find_hyperlink_text_to_table(self, list_of_hyperlink_texts, form = 'balance_sheet'):
         """
 
         Parameters
         ----------
-        list_of_hyperlink_texts: List of texts to search the hyperlink for
+        list_of_hyperlink_texts: List of texts to search the hyperlink for (Find hyperlink text if it contains text)
         form: What type of form -- 'balance sheet', 'statement of operations' and 'cash flow statements' are the only accepted inputs
 
         Returns the lxml table element if found
@@ -72,9 +135,31 @@ class finder():
                             else:
                                 return table[0]
                     elif form == 'statement of operations':
-                        pass
+                        if 'statement' in text:
+                            table = page.xpath('./following::table[1]')
+                            if table == []:
+                                return 'Null'
+                            else:
+                                return table[0]
+                        else:
+                            table = page.xpath('./following::*[contains(translate(., "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"),"statement")]/following::table[1]')
+                            if table == []:
+                                return 'Null'
+                            else:
+                                return table[0]
                     elif form == 'cash flow statements':
-                        pass
+                        if 'cash flow' in text:
+                            table = page.xpath('./following::table[1]')
+                            if table == []:
+                                return 'Null'
+                            else:
+                                return table[0]
+                        else:
+                            table = page.xpath('./following::*[contains(translate(., "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"),"cash flow")]/following::table[1]')
+                            if table == []:
+                                return 'Null'
+                            else:
+                                return table[0]
             else:
                 return 'Null'
         with ThreadPoolExecutor() as e:
@@ -92,7 +177,7 @@ class finder():
 
         Parameters
         ----------
-        list_of_text_before_table: List of texts to search as header/before the table to find
+        list_of_text_before_table: List of texts to search as header/before the table to find (Exact match - (unaudited) - 's' at right end of string)
         form: What type of form -- 'balance sheet', 'statement of operations' and 'cash flow statements' are the only accepted inputs
 
         Returns the lxml table element if found
@@ -106,7 +191,7 @@ class finder():
             form = text_and_doc[2]
             res = []
             for i in doc.xpath(f'//*'):
-                if str(i.text).lower().replace('(unaudited)', '').strip(' ') == text:
+                if str(i.text).lower().replace('(unaudited)', '').strip(' ').rstrip('s') == text:
                     res.append(i)
             if len(res) == 0:
                 return 'Null'
@@ -117,27 +202,8 @@ class finder():
                 # Filter to just the few same tables
                 res = list(set([i.xpath('./following::table[1]')[0] for i in res]))
                 res = [i for i in res if i is not None]
+                return self.check_tables(res,form=form)
 
-                if form == 'balance sheet':
-                    # Return the table if the table contains all the words 'assets', 'liabilities' and 'equity'
-                    for i in res:
-                        assets = list(set(['Positive' if 'assets' in str(a.text).lower().strip(' ') else 'Null' for a in
-                                           i.xpath('./tr/td')])).remove('Null')
-                        liabilities = list(
-                            set(['Positive' if 'liabilities' in str(a.text).lower().strip(' ') else 'Null' for a in
-                                 i.xpath('./tr/td')])).remove('Null')
-                        equity = list(set(['Positive' if 'equity' in str(a.text).lower().strip(' ') else 'Null' for a in
-                                           i.xpath('./tr/td')])).remove('Null')
-                        if assets and liabilities and equity:
-                            table = i
-                            return table
-                        else:
-                            continue
-                    return 'Null'
-                elif form == 'statement of operations':
-                    pass
-                elif form == 'cash flow statements':
-                    pass
         with ThreadPoolExecutor() as e:
             ret = [e.submit(find_text, [text, self.doc, form]) for text in list_of_text_before_table]
             ret = [i.result() for i in ret]
@@ -153,7 +219,7 @@ class finder():
 
         Parameters
         ----------
-        list_of_text_in_table: List of texts to search for that exists in the table to find
+        list_of_text_in_table: List of texts to search for that exists in the table to find (Exact match)
         form: What type of form -- 'balance sheet', 'statement of operations' and 'cash flow statements' are the only accepted inputs
 
         Returns the lxml table element if found
@@ -179,27 +245,7 @@ class finder():
                 res = list(set([i.xpath('./ancestor::table[1]')[0] for i in res]))
                 res = [i for i in res if i is not None]
                 print(res)
-
-                if form == 'balance sheet':
-                    # Return the table if the table contains all the words 'assets', 'liabilities' and 'equity'
-                    for i in res:
-                        assets = list(set(['Positive' if 'assets' in str(a.text).lower().strip(' ') else 'Null' for a in
-                                           i.xpath('./tr/td')])).remove('Null')
-                        liabilities = list(
-                            set(['Positive' if 'liabilities' in str(a.text).lower().strip(' ') else 'Null' for a in
-                                 i.xpath('./tr/td')])).remove('Null')
-                        equity = list(set(['Positive' if 'equity' in str(a.text).lower().strip(' ') else 'Null' for a in
-                                           i.xpath('./tr/td')])).remove('Null')
-                        if assets and liabilities and equity:
-                            table = i
-                            return table
-                        else:
-                            continue
-                    return 'Null'
-                elif form == 'statement of operations':
-                    pass
-                elif form == 'cash flow statements':
-                    pass
+                return self.check_tables(res,form=form)
         with ThreadPoolExecutor() as e:
             ret = [e.submit(find_text, [text,self.doc, form]) for text in list_of_text_in_table]
             ret = [i.result() for i in ret]

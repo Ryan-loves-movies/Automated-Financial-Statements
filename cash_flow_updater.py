@@ -9,7 +9,6 @@ from updater import updater
 import time
 import xlwings as xw
 
-
 def excel_column_name(n):
     """
     Number to Excel-style column name, e.g., 1 = A, 26 = Z, 27 = AA, 703 = AAA.
@@ -20,7 +19,7 @@ def excel_column_name(n):
         name = chr(r + ord('A')) + name
     return name
 
-def main(sheet_name = 'Balance Sheet' , config_name = 'Balance Sheet config', ticker_col = 'tickers', forms_col = 'forms', data_col = 2):
+def main(sheet_name = 'Cash Flow Statements' , config_name = 'Cash Flow config', ticker_col = 'tickers', forms_col = 'forms', data_col = 2):
     """
 
     Parameters
@@ -37,7 +36,6 @@ def main(sheet_name = 'Balance Sheet' , config_name = 'Balance Sheet config', ti
 
     """
     wb = xw.Book.caller()
-    wb.sheets[sheet_name].range((excel_column_name(data_col - 1) + '1')).value = f'Script running in the background! Please allow me some time before the next update!'
 
     very_start = time.perf_counter()
     # Retrieve tickers from column specified
@@ -55,26 +53,22 @@ def main(sheet_name = 'Balance Sheet' , config_name = 'Balance Sheet config', ti
     while time.perf_counter() - first_request < 0.15:
         continue
     start = time.perf_counter()
-    links = balance_sheet_data.get_form_links(list_of_json_cik, 'balance sheets')
+    links = balance_sheet_data.get_form_links(list_of_json_cik, 'statement of cash flows')
     print(f'get_form_links took {time.perf_counter()-start}')
 
     wb.sheets[sheet_name].range((excel_column_name(data_col-1) + '1')).value = f'30% Done, That took {str(time.perf_counter()-very_start)[:6]}s'
-    # Range((sheet_name, excel_column_name(data_col - 1) + '1')).wrap_text = True
 
     start = time.perf_counter()
-    data = balance_sheet_data.download(links, table_type='balance_sheet_tables')
+    data = balance_sheet_data.download(links, table_type='cash_flow_statement_tables')
     print(f'processor().download() took {time.perf_counter()-start}')
 
     wb.sheets[sheet_name].range((excel_column_name(data_col-1) + '2')).value = f'90% Done, That took a total of {str(time.perf_counter()-very_start)[:6]}s! Updating Soon!!'
-    # Range((sheet_name, excel_column_name(data_col - 1) + '2')).wrap_text = True
 
     # Update full data onto excel sheet specified
     excel_updater = updater(wb, sheet_name)
     excel_updater.update(data=data,col_for_data=data_col)
-    # Range((sheet_name, excel_column_name(data_col - 1) + '3')).value = f'100% Done, That took a total of {time.time() - start}s!'
     wb.sheets[sheet_name].range((excel_column_name(data_col-1) + '3')).value = f'100% Done, That took a total of {str(time.perf_counter()-very_start)[:6]}s!'
 
 if __name__ == '__main__':
     xw.Book('financial_statements.xlsm').set_mock_caller()
     main()
-

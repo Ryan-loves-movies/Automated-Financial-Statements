@@ -1,4 +1,3 @@
-import copy
 import pathlib
 script_path = str(pathlib.Path(__file__).parent.resolve())
 import sys
@@ -10,7 +9,6 @@ from processor_classes.ratelimiter import ratelimiter
 import time
 from lxml import etree
 import requests
-from json.decoder import JSONDecodeError
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 from pprint import pprint
@@ -74,7 +72,7 @@ class processor():
         ----------
         dictionary_cik: Dictionary returned from processor(ticker_form_list).get_json_cik()
             E.g. {'AAPL': ['320193', 'CIK0000320193.json', '10-Q'], 'MSFT': ['789019', 'CIK0000789019.json', '10-K']}
-        financial_statement: Report wanted -- Only 'balance sheets', 'statement of operations', 'cash flow statements' are accepted
+        financial_statement: Report wanted -- Only 'balance sheets', 'statement of operations', 'statement of cash flows' are accepted
 
         Returns a dictionary of ticker symbols that give list of
         reportDate,
@@ -109,8 +107,6 @@ class processor():
             url: '(CIK)/(acs-number)/FilingSummary.xml'
             header: Header for requests
             table: Report wanted --> 'balance sheets', ...
-
-            -- Note:No request limit throttling put in place as sec.gov doesn't limit these requsts
 
             Returns the exact full link to retrieve the table wanted --> Balance Sheet if the link is valid
             Else, return False
@@ -178,10 +174,135 @@ class processor():
                     return filingsummary
                 else:
                     return False
-            elif table == 'consolidated statement of operations':
-                pass
-            elif table == 'consolidated statement of cash flows':
-                pass
+            elif table == 'statement of operations':
+                # Define list to append to for checking
+                make_requests = []
+                for report in reports:
+                    name = report.find('./ShortName').text.lower().strip(' ').strip('(unaudited)').strip(' ').rstrip('s')
+                    names = ['consolidated statement of income',
+                              'consolidated statements of income',
+                              'condensed consolidated statement of income',
+                              'condensed consolidated statements of income',
+                              'consolidated condensed statement of income',
+                              'consolidated condensed statements of income',
+
+                              'consolidated statement of operation',
+                              'consolidated statements of operation',
+                              'condensed consolidated statement of operation',
+                              'condensed consolidated statements of operation',
+                              'consolidated condensed statement of operation',
+                              'consolidated condensed statements of operation']
+                    if name in names:
+                        try:
+                            html_url = report.find('./HtmlFileName').text
+                            return full_url.replace('FilingSummary.xml', html_url)
+                        except AttributeError:
+                            xml_url = report.find('./XmlFileName').text
+                            return full_url.replace('FilingSummary.xml', xml_url)
+                    elif 'balance sheet' in name:
+                        try:
+                            html_url = report.find('./HtmlFileName').text
+                            make_requests.append([full_url.replace('FilingSummary.xml', html_url), 'html'])
+                        except AttributeError:
+                            xml_url = report.find('./XmlFileName').text
+                            make_requests.append([full_url.replace('FilingSummary.xml', xml_url), 'xml'])
+                # If 'balance sheet' is actually in the names
+                if make_requests:
+                    # Asynchronously make requsts and get result
+                    async def get(url, session, transform):
+                        async with session.get(url=url[0]) as response:
+                            resp = await response.read()
+                            if url[1] == 'html':
+                                table_str = resp.decode('utf-8')
+                            else:
+                                dom = etree.fromstring(resp, parser=etree.XMLParser())
+                                newdoc = transform(dom)
+                                table_str = etree.tostring(newdoc.xpath('.//table[1]')[0])
+                            if ('net income' in table_str) and ('operating income' in table_str or 'income from operation' in table_str) and ('revenue' in table_str or 'sales' in table_str):
+                                return url[0]
+                            else:
+                                return 'Null'
+
+                    async def main_get(urls):
+                        # xml schema provided by edgar to decrypt xml
+                        xsl_filename = f'{pathlib.Path().resolve()}/InstanceReport.xslt'
+                        xslt = etree.parse(xsl_filename, parser=etree.XMLParser())
+                        transform = etree.XSLT(xslt)
+
+                        async with aiohttp.ClientSession(headers=header) as session:
+                            ret = await asyncio.gather(*[get(url, session, transform) for url in urls])
+                            ret = [i for i in ret if i != 'Null']
+                            if ret:
+                                return ret[0]
+                            else:
+                                return False
+
+                    filingsummary = asyncio.run(main_get(make_requests))
+                    return filingsummary
+                else:
+                    return False
+            elif table == 'statement of cash flows':
+                # Define list to append to for checking
+                make_requests = []
+                for report in reports:
+                    name = report.find('./ShortName').text.lower().strip(' ').strip('(unaudited)').strip(' ').rstrip('s')
+                    names = ['consolidated statement of cash flow',
+                             'consolidated statements of cash flow',
+                             'condensed consolidated statement of cash flow',
+                             'condensed consolidated statements of cash flow',
+                             'consolidated condensed statement of cash flow',
+                             'consolidated condensed statements of cash flow']
+                    if name in names:
+                        try:
+                            html_url = report.find('./HtmlFileName').text
+                            return full_url.replace('FilingSummary.xml', html_url)
+                        except AttributeError:
+                            xml_url = report.find('./XmlFileName').text
+                            return full_url.replace('FilingSummary.xml', xml_url)
+                    elif 'balance sheet' in name:
+                        try:
+                            html_url = report.find('./HtmlFileName').text
+                            make_requests.append([full_url.replace('FilingSummary.xml', html_url), 'html'])
+                        except AttributeError:
+                            xml_url = report.find('./XmlFileName').text
+                            make_requests.append([full_url.replace('FilingSummary.xml', xml_url), 'xml'])
+                # If 'balance sheet' is actually in the names
+                if make_requests:
+                    # Asynchronously make requsts and get result
+                    async def get(url, session, transform):
+                        async with session.get(url=url[0]) as response:
+                            resp = await response.read()
+                            if url[1] == 'html':
+                                table_str = resp.decode('utf-8')
+                            else:
+                                dom = etree.fromstring(resp, parser=etree.XMLParser())
+                                newdoc = transform(dom)
+                                table_str = etree.tostring(newdoc.xpath('.//table[1]')[0])
+                            if ('operating activities' in table_str) and ('financing activities' in table_str) and ('investing activities' in table_str):
+                                return url[0]
+                            else:
+                                return 'Null'
+
+                    async def main_get(urls):
+                        # xml schema provided by edgar to decrypt xml
+                        xsl_filename = f'{pathlib.Path().resolve()}/InstanceReport.xslt'
+                        xslt = etree.parse(xsl_filename, parser=etree.XMLParser())
+                        transform = etree.XSLT(xslt)
+
+                        async with aiohttp.ClientSession(headers=header) as session:
+                            ret = await asyncio.gather(*[get(url, session, transform) for url in urls])
+                            ret = [i for i in ret if i != 'Null']
+                            if ret:
+                                return ret[0]
+                            else:
+                                return False
+
+                    filingsummary = asyncio.run(main_get(make_requests))
+                    return filingsummary
+                else:
+                    return False
+            elif table == 'whole report':
+                return 'Null'
 
         def test_against(fin_dict, ticker_symbol, form, form_name, accnum, reportdate, primdoc, cik):
             """

@@ -37,28 +37,37 @@ def main(sheet_name = 'Income Statements' , config_name = 'Income Statements con
     """
     wb = xw.Book.caller()
 
-    very_start = time.time()
-
+    very_start = time.perf_counter()
     # Retrieve tickers from column specified
     puller = retriever(wb, config_name)
     tickers_with_forms = puller.retrieve_data(ticker_col, forms_col)
+    print(f'retrieving took {time.perf_counter()-very_start}s')
 
     # Update list of tickers with balance sheet data
+    start = time.perf_counter()
     balance_sheet_data = processor(tickers_with_forms)
     list_of_json_cik = balance_sheet_data.get_json_cik()
+    first_request = time.perf_counter()
+    print(f'get_json_cik took {first_request - start}s')
 
-    links = balance_sheet_data.get_form_links(list_of_json_cik)
-    wb.sheets[sheet_name].range((excel_column_name(data_col-1) + '1')).value = f'10% Done, That took {str(time.time()-very_start)[:6]}s'
+    while time.perf_counter() - first_request < 0.15:
+        continue
+    start = time.perf_counter()
+    links = balance_sheet_data.get_form_links(list_of_json_cik, 'statement of operations')
+    print(f'get_form_links took {time.perf_counter()-start}')
 
-    data = balance_sheet_data.download(links)
-    wb.sheets[sheet_name].range((excel_column_name(data_col-1) + '2')).value = f'80% Done, That took a total of {str(time.time()-very_start)[:6]}s! Updating Soon!!'
-    # Range((sheet_name, excel_column_name(data_col - 1) + '2')).wrap_text = True
+    wb.sheets[sheet_name].range((excel_column_name(data_col-1) + '1')).value = f'30% Done, That took {str(time.perf_counter()-very_start)[:6]}s'
+
+    start = time.perf_counter()
+    data = balance_sheet_data.download(links, table_type='income_statement_tables')
+    print(f'processor().download() took {time.perf_counter()-start}')
+
+    wb.sheets[sheet_name].range((excel_column_name(data_col-1) + '2')).value = f'90% Done, That took a total of {str(time.perf_counter()-very_start)[:6]}s! Updating Soon!!'
 
     # Update full data onto excel sheet specified
     excel_updater = updater(wb, sheet_name)
     excel_updater.update(data=data,col_for_data=data_col)
-    # Range((sheet_name, excel_column_name(data_col - 1) + '3')).value = f'100% Done, That took a total of {time.time() - start}s!'
-    wb.sheets[sheet_name].range((excel_column_name(data_col-1) + '3')).value = f'100% Done, That took a total of {str(time.time()-very_start)[:6]}s!'
+    wb.sheets[sheet_name].range((excel_column_name(data_col-1) + '3')).value = f'100% Done, That took a total of {str(time.perf_counter()-very_start)[:6]}s!'
 
 if __name__ == '__main__':
     xw.Book('financial_statements.xlsm').set_mock_caller()
